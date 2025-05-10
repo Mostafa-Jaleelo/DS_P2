@@ -1,211 +1,265 @@
 #include <iostream>
+#include <string>
 using namespace std;
 
-class Node
-{
-public:
-    int id, height;
-    string name, phone, email;
-    Node *Left, *Right;
-
-    Node(int id, string name, string phone, string email)
-    {
-        this->id = id;
-        this->name = name;
-        this->phone = phone;
-        this->email = email;
-        Left = Right = NULL;
-        height = 1;
-    }
+struct Contact {
+    string name;
+    string phone;
+    string email;
 };
 
-class AVLTree
-{
-private:
-    Node *root;
-
-public:
-    AVLTree()
-    {
-        root = NULL;
-    }
-
-    int height(Node *r)
-    {
-        if (r == NULL)
-            return 0;
-        return r->height;
-    }
-
-    int getBalance(Node *r)
-    {
-        if (r == NULL)
-            return 0;
-        return height(r->Left) - height(r->Right);
-    }
-
-    Node *rotateRight(Node *r)
-    {
-        Node *newRoot = r->Left;
-        Node *temp = newRoot->Right;
-        newRoot->Right = r;
-        r->Left = temp;
-        r->height = max(height(r->Left), height(r->Right)) + 1;
-        newRoot->height = max(height(newRoot->Left), height(newRoot->Right)) + 1;
-        return newRoot;
-    }
-
-    Node *rotateLeft(Node *r)
-    {
-        Node *newRoot = r->Right;
-        Node *temp = newRoot->Left;
-        newRoot->Left = r;
-        r->Right = temp;
-        r->height = max(height(r->Left), height(r->Right)) + 1;
-        newRoot->height = max(height(newRoot->Left), height(newRoot->Right)) + 1;
-        return newRoot;
-    }
-
-    Node *Insert(Node *r, int id, string name, string phone, string email)
-    {
-        if (r == NULL)
-            return new Node(id, name, phone, email);
-
-        if (id < r->id)
-            r->Left = Insert(r->Left, id, name, phone, email);
-        else if (id > r->id)
-            r->Right = Insert(r->Right, id, name, phone, email);
-        else
-            return r;
-
-        r->height = max(height(r->Left), height(r->Right)) + 1;
-
-        int balance = getBalance(r);
-
-        if (balance > 1 && id < r->Left->id)
-            return rotateRight(r);
-
-        if (balance < -1 && id > r->Right->id)
-            return rotateLeft(r);
-
-        if (balance > 1 && id > r->Left->id)
-        {
-            r->Left = rotateLeft(r->Left);
-            return rotateRight(r);
-        }
-
-        if (balance < -1 && id < r->Right->id)
-        {
-            r->Right = rotateRight(r->Right);
-            return rotateLeft(r);
-        }
-
-        return r;
-    }
-
-    void Insert(int id, string name, string phone, string email)
-    {
-        root = Insert(root, id, name, phone, email);
-    }
-
-    Node *Search(Node *r, int key)
-    {
-        if (r == NULL || r->id == key)
-            return r;
-
-        if (key < r->id)
-            return Search(r->Left, key);
-
-        return Search(r->Right, key);
-    }
-
-    bool Search(int key)
-    {
-        return Search(root, key) != NULL;
-    }
-
-    void Inorder(Node *r)
-    {
-        if (r == NULL)
-            return;
-
-        Inorder(r->Left);
-        cout << r->id << " " << r->name << " " << r->phone << " " << r->email << endl;
-        Inorder(r->Right);
-    }
-
-    void Inorder()
-    {
-        Inorder(root);
-    }
-
-    void DisplayTree(Node *r, string indent)
-    {
-        if (r != NULL)
-        {
-            cout << indent << r->id << endl;
-            DisplayTree(r->Left, indent + "L---");
-            DisplayTree(r->Right, indent + "R---");
-        }
-    }
-
-    void DisplayTree()
-    {
-        DisplayTree(root, "");
-    }
+struct Node {
+    int id;
+    Contact contact;
+    Node* left;
+    Node* right;
+    int height;
 };
 
-int main()
-{
-    AVLTree tree;
-    int choice, id;
-    string name, phone, email;
+int max(int a, int b) {
+    return (a > b) ? a : b;
+}
 
-    while (true)
-    {
-        cout << "1. Add New Contact" << endl;
-        cout << "2. Search for Contact" << endl;
-        cout << "3. List All Contacts (Sorted by ID)" << endl;
-        cout << "4. Display Current Tree Structure" << endl;
-        cout << "Enter operation (1-4): ";
+int height(Node* node) {
+    if (node == NULL) return 0;
+    return node->height;
+}
+
+int getBalance(Node* node) {
+    if (node == NULL) return 0;
+    return height(node->left) - height(node->right);
+}
+
+Node* createNode(int id, Contact contact) {
+    Node* node = new Node;
+    node->id = id;
+    node->contact = contact;
+    node->left = NULL;
+    node->right = NULL;
+    node->height = 1;
+    return node;
+}
+
+Node* rightRotate(Node* y) {
+    Node* x = y->left;
+    Node* T2 = x->right;
+
+    x->right = y;
+    y->left = T2;
+
+    y->height = max(height(y->left), height(y->right)) + 1;
+    x->height = max(height(x->left), height(x->right)) + 1;
+
+    return x;
+}
+
+Node* leftRotate(Node* x) {
+    Node* y = x->right;
+    Node* T2 = y->left;
+
+    y->left = x;
+    x->right = T2;
+
+    x->height = max(height(x->left), height(x->right)) + 1;
+    y->height = max(height(y->left), height(y->right)) + 1;
+
+    return y;
+}
+
+Node* minValueNode(Node* node) {
+    Node* current = node;
+    while (current->left != NULL)
+        current = current->left;
+    return current;
+}
+
+Node* insert(Node* node, int id, Contact contact, bool &duplicate) {
+    if (node == NULL) return createNode(id, contact);
+
+    if (id < node->id) {
+        node->left = insert(node->left, id, contact, duplicate);
+    } else if (id > node->id) {
+        node->right = insert(node->right, id, contact, duplicate);
+    } else {
+        duplicate = true;
+        return node;
+    }
+
+    node->height = 1 + max(height(node->left), height(node->right));
+    int balance = getBalance(node);
+
+    if (balance > 1 && id < node->left->id)
+        return rightRotate(node);
+
+    if (balance < -1 && id > node->right->id)
+        return leftRotate(node);
+
+    if (balance > 1 && id > node->left->id) {
+        node->left = leftRotate(node->left);
+        return rightRotate(node);
+    }
+
+    if (balance < -1 && id < node->right->id) {
+        node->right = rightRotate(node->right);
+        return leftRotate(node);
+    }
+
+    return node;
+}
+
+Node* deleteNode(Node* root, int id) {
+    if (root == NULL) return root;
+
+    if (id < root->id) {
+        root->left = deleteNode(root->left, id);
+    } else if (id > root->id) {
+        root->right = deleteNode(root->right, id);
+    } else {
+        if (root->left == NULL || root->right == NULL) {
+            Node* temp = root->left ? root->left : root->right;
+            if (temp == NULL) {
+                temp = root;
+                root = NULL;
+            } else {
+                *root = *temp;
+            }
+            delete temp;
+        } else {
+            Node* temp = minValueNode(root->right);
+            root->id = temp->id;
+            root->contact = temp->contact;
+            root->right = deleteNode(root->right, temp->id);
+        }
+    }
+
+    if (root == NULL) return root;
+
+    root->height = 1 + max(height(root->left), height(root->right));
+    int balance = getBalance(root);
+
+    if (balance > 1 && getBalance(root->left) >= 0)
+        return rightRotate(root);
+
+    if (balance > 1 && getBalance(root->left) < 0) {
+        root->left = leftRotate(root->left);
+        return rightRotate(root);
+    }
+
+    if (balance < -1 && getBalance(root->right) <= 0)
+        return leftRotate(root);
+
+    if (balance < -1 && getBalance(root->right) > 0) {
+        root->right = rightRotate(root->right);
+        return leftRotate(root);
+    }
+
+    return root;
+}
+
+Node* search(Node* root, int id) {
+    if (root == NULL || root->id == id)
+        return root;
+    if (id < root->id)
+        return search(root->left, id);
+    return search(root->right, id);
+}
+
+void inorder(Node* root) {
+    if (root != NULL) {
+        inorder(root->left);
+        cout << "ID: " << root->id << ", Name: " << root->contact.name
+             << ", Phone: " << root->contact.phone
+             << ", Email: " << root->contact.email << endl;
+        inorder(root->right);
+    }
+}
+
+void printTree(Node* root, int space = 0, int height = 10) {
+    if (root == NULL) return;
+
+    space += height;
+    printTree(root->right, space);
+
+    cout << endl;
+    for (int i = height; i < space; i++) cout << " ";
+    cout << root->id << endl;
+
+    printTree(root->left, space);
+}
+
+int main() {
+    Node* root = NULL;
+    int choice;
+
+    while (true) {
+        cout << "\nAddress Book Application\n";
+        cout << "------------------------\n";
+        cout << "1. Add New Contact\n";
+        cout << "2. Search for Contact\n";
+        cout << "3. Delete Contact\n";
+        cout << "4. List All Contacts (Sorted by ID)\n";
+        cout << "5. Display Current Tree Structure\n";
+        cout << "------------------------\n";
+        cout << "Enter operation (1-5): ";
         cin >> choice;
 
-        switch (choice)
-        {
-        case 1:
-            cout << "Enter unique ID: ";
+        if (choice == 1) {
+            int id;
+            Contact c;
+            cout << "Enter unique ID (integer): ";
             cin >> id;
-            cout << "Enter name: ";
-            cin >> name;
-            cout << "Enter phone: ";
-            cin >> phone;
-            cout << "Enter email: ";
-            cin >> email;
-            tree.Insert(id, name, phone, email);
-            cout << "Contact added successfully." << endl;
-            break;
+            cin.ignore();
 
-        case 2:
+            cout << "Enter name: ";
+            getline(cin, c.name);
+            cout << "Enter phone: ";
+            getline(cin, c.phone);
+            cout << "Enter email: ";
+            getline(cin, c.email);
+
+            bool duplicate = false;
+            root = insert(root, id, c, duplicate);
+            if (duplicate) {
+                cout << "Error: Contact with ID " << id << " already exists.\n";
+            } else {
+                cout << "Contact added successfully.\n";
+            }
+
+        } else if (choice == 2) {
+            int id;
             cout << "Enter ID to search: ";
             cin >> id;
-            if (tree.Search(id))
-                cout << "Contact found." << endl;
-            else
-                cout << "Contact not found." << endl;
-            break;
+            Node* result = search(root, id);
+            if (result == NULL) {
+                cout << "Contact not found.\n";
+            } else {
+                cout << "Contact found:\n";
+                cout << "ID: " << result->id << endl;
+                cout << "Name: " << result->contact.name << endl;
+                cout << "Phone: " << result->contact.phone << endl;
+                cout << "Email: " << result->contact.email << endl;
+            }
 
-        case 3:
-            cout << "Contacts in Address Book (sorted by ID):" << endl;
-            tree.Inorder();
-            break;
+        } else if (choice == 3) {
+            int id;
+            cout << "Enter ID to delete: ";
+            cin >> id;
+            Node* result = search(root, id);
+            if (result == NULL) {
+                cout << "Contact not found.\n";
+            } else {
+                root = deleteNode(root, id);
+                cout << "Contact deleted successfully.\n";
+            }
 
-        case 4:
-            cout << "Current AVL Tree:" << endl;
-            tree.DisplayTree();
-            break;
-
-        default:
-            cout << "Invalid operation." << endl;
+        } else if (choice == 4) {
+            cout << "Contacts in Address Book (sorted by ID):\n";
+            inorder(root);
+        } else if (choice == 5) {
+            cout << "Current AVL Tree:\n";
+            printTree(root);
+        } else {
+            cout << "Invalid choice. Try again.\n";
         }
     }
 
